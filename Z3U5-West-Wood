@@ -1,5 +1,4 @@
--- Z3U5 ESP Script for Roblox Horror Games
--- Compatible with mobile executor environment
+-- Z3U5 HUB
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
