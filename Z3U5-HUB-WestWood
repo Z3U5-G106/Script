@@ -1,0 +1,583 @@
+-- Z3U5 HUB
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
+local CoreGui = game:GetService("CoreGui")
+local UserInputService = game:GetService("UserInputService")
+
+local LocalPlayer = Players.LocalPlayer
+local Camera = workspace.CurrentCamera
+
+-- ESP Storage
+local ESPObjects = {}
+local Connections = {}
+
+-- UI Variables
+local ScreenGui, MainButton, MainFrame, TeleportFrame, OthersFrame
+local ESPToggles = {
+    Monster = false,
+    Player = false,
+    Houses = false,
+    Items = false,
+    CacheBox = false
+}
+
+-- Colors for different ESP types
+local ESPColors = {
+    Monster = Color3.fromRGB(255, 0, 0),
+    Player = Color3.fromRGB(0, 255, 0),
+    Houses = Color3.fromRGB(255, 255, 0),
+    Items = Color3.fromRGB(0, 255, 255),
+    CacheBox = Color3.fromRGB(255, 165, 0),
+    Code = Color3.fromRGB(255, 192, 203)
+}
+
+-- House positions
+local HousePositions = {
+    {name = "House 1", pos = Vector3.new(-1899.73, 13.55, -1019.22)},
+    {name = "House 2", pos = Vector3.new(-1967.71, 5.20, -1265.53)},
+    {name = "House 3", pos = Vector3.new(-2252.76, 4.56, -962.53)},
+    {name = "House 4", pos = Vector3.new(-2350.38, 10.36, -1146.34)},
+    {name = "House 5", pos = Vector3.new(-2229.85, 9.95, -1444.92)},
+    {name = "House 6", pos = Vector3.new(-2397.95, 2.89, -1517.19)},
+    {name = "House 7", pos = Vector3.new(-1915.93, 4.45, -1621.71)},
+    {name = "House 8", pos = Vector3.new(-1696.46, 10.51, -1695.40)},
+    {name = "House 9", pos = Vector3.new(-1695.99, 1.81, -1382.98)},
+    {name = "House 10", pos = Vector3.new(-1531.26, 10.06, -1192.95)},
+    {name = "House 11", pos = Vector3.new(-1483.31, 2.00, -1369.89)},
+    {name = "House 12", pos = Vector3.new(-1427.03, 10.19, -1610.70)}
+}
+
+-- Building positions
+local BuildingPositions = {
+    {name = "WaterPump", pos = Vector3.new(-1666.40, 11.56, -1080.11)},
+    {name = "Power Station", pos = Vector3.new(-2124.63, 8.99, -1790.79)},
+    {name = "Church", pos = Vector3.new(-1853.36, 11.98, -1864.70)},
+    {name = "Shop", pos = Vector3.new(-1822.92, 2.65, -1470.27)},
+    {name = "NPC Shop", pos = Vector3.new(-2080.18, 8.13, -1014.72)}
+}
+
+-- Create ESP function
+local function createESP(object, text, color, offset)
+    if ESPObjects[object] then return end
+    
+    local billboard = Instance.new("BillboardGui")
+    billboard.Parent = CoreGui
+    billboard.Adornee = object
+    billboard.Size = UDim2.new(0, 70, 0, 35)
+    billboard.StudsOffset = offset or Vector3.new(0, 2, 0)
+    billboard.AlwaysOnTop = true
+    
+    local label = Instance.new("TextLabel")
+    label.Parent = billboard
+    label.Size = UDim2.new(1, 0, 1, 0)
+    label.BackgroundTransparency = 1
+    label.Text = text
+    label.TextColor3 = color
+    label.TextScaled = true
+    label.TextStrokeTransparency = 0
+    label.TextStrokeColor3 = Color3.new(0, 0, 0)
+    label.Font = Enum.Font.Gotham
+    
+    local highlight = Instance.new("Highlight")
+    highlight.Parent = object
+    highlight.FillColor = color
+    highlight.OutlineColor = color
+    highlight.FillTransparency = 0.7
+    highlight.OutlineTransparency = 0
+    
+    ESPObjects[object] = {billboard = billboard, highlight = highlight}
+end
+
+-- Remove ESP function
+local function removeESP(object)
+    if ESPObjects[object] then
+        ESPObjects[object].billboard:Destroy()
+        ESPObjects[object].highlight:Destroy()
+        ESPObjects[object] = nil
+    end
+end
+
+-- Create position ESP (for houses/buildings)
+local function createPositionESP(position, text, color)
+    local part = Instance.new("Part")
+    part.Name = text .. "_ESP_Marker"
+    part.Parent = workspace
+    part.Anchored = true
+    part.CanCollide = false
+    part.Transparency = 1
+    part.Size = Vector3.new(1, 1, 1)
+    part.Position = position
+    
+    createESP(part, text, color)
+    return part
+end
+
+-- Monster ESP
+local function updateMonsterESP()
+    if ESPToggles.Monster then
+        local wendigo = workspace:FindFirstChild("AI") and workspace.AI:FindFirstChild("WendigoAI")
+        if wendigo then
+            createESP(wendigo, "Wendigo", ESPColors.Monster)
+        end
+    else
+        local wendigo = workspace:FindFirstChild("AI") and workspace.AI:FindFirstChild("WendigoAI")
+        if wendigo then removeESP(wendigo) end
+    end
+end
+
+-- Player ESP
+local function updatePlayerESP()
+    for _, player in pairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+            if ESPToggles.Player then
+                local humanoid = player.Character:FindFirstChildOfClass("Humanoid")
+                local health = humanoid and math.floor(humanoid.Health) or 0
+                local text = player.Name .. "\n[" .. health .. " HP]"
+                createESP(player.Character.HumanoidRootPart, text, ESPColors.Player)
+                
+                -- Add highlight to the entire character
+                if not player.Character:FindFirstChild("PlayerHighlight") then
+                    local highlight = Instance.new("Highlight")
+                    highlight.Name = "PlayerHighlight"
+                    highlight.Parent = player.Character
+                    highlight.FillColor = ESPColors.Player
+                    highlight.OutlineColor = ESPColors.Player
+                    highlight.FillTransparency = 0.7
+                    highlight.OutlineTransparency = 0
+                end
+            else
+                removeESP(player.Character.HumanoidRootPart)
+                -- Remove highlight
+                local highlight = player.Character:FindFirstChild("PlayerHighlight")
+                if highlight then
+                    highlight:Destroy()
+                end
+            end
+        end
+    end
+end
+
+-- Houses ESP
+local function updateHousesESP()
+    for i, house in pairs(HousePositions) do
+        local marker = workspace:FindFirstChild(house.name .. "_ESP_Marker")
+        if ESPToggles.Houses then
+            if not marker then
+                createPositionESP(house.pos, house.name, ESPColors.Houses)
+            end
+        else
+            if marker then
+                removeESP(marker)
+                marker:Destroy()
+            end
+        end
+    end
+    
+    for i, building in pairs(BuildingPositions) do
+        local marker = workspace:FindFirstChild(building.name .. "_ESP_Marker")
+        if ESPToggles.Houses then
+            if not marker then
+                createPositionESP(building.pos, building.name, ESPColors.Houses)
+            end
+        else
+            if marker then
+                removeESP(marker)
+                marker:Destroy()
+            end
+        end
+    end
+end
+
+-- Items ESP
+local function updateItemsESP()
+    local itemSpawners = workspace:FindFirstChild("ItemSpawners")
+    if not itemSpawners then return end
+    
+    local itemsFolder = itemSpawners:FindFirstChild("Items")
+    local shopItemsFolder = itemSpawners:FindFirstChild("ShopItemPickups")
+    
+    if ESPToggles.Items then
+        -- Load Items folder first
+        if itemsFolder then
+            for _, item in pairs(itemsFolder:GetChildren()) do
+                createESP(item, item.Name, ESPColors.Items)
+                wait(0.6) -- Load slowly as requested
+            end
+        end
+        
+        -- Then load ShopItemPickups folder
+        if shopItemsFolder then
+            for _, item in pairs(shopItemsFolder:GetChildren()) do
+                createESP(item, item.Name, ESPColors.Items)
+                wait(0.6) -- Load slowly as requested
+            end
+        end
+    else
+        -- Remove ESP from both folders
+        if itemsFolder then
+            for _, item in pairs(itemsFolder:GetChildren()) do
+                removeESP(item)
+            end
+        end
+        if shopItemsFolder then
+            for _, item in pairs(shopItemsFolder:GetChildren()) do
+                removeESP(item)
+            end
+        end
+    end
+end
+
+-- CacheBox ESP
+local function updateCacheBoxESP()
+    local caches = workspace:FindFirstChild("Caches")
+    if caches then
+        local cacheBox = caches:FindFirstChild("CacheBox")
+        local paper = caches:FindFirstChild("Paper")
+        
+        if ESPToggles.CacheBox then
+            if cacheBox then
+                createESP(cacheBox, "CacheBox", ESPColors.CacheBox)
+                
+                -- Add highlight to CacheBox
+                if not cacheBox:FindFirstChild("CacheBoxHighlight") then
+                    local highlight = Instance.new("Highlight")
+                    highlight.Name = "CacheBoxHighlight"
+                    highlight.Parent = cacheBox
+                    highlight.FillColor = ESPColors.CacheBox
+                    highlight.OutlineColor = ESPColors.CacheBox
+                    highlight.FillTransparency = 0.7
+                    highlight.OutlineTransparency = 0
+                end
+            end
+            if paper then
+                createESP(paper, "Code", ESPColors.Code)
+                
+                -- Add highlight to Paper
+                if not paper:FindFirstChild("PaperHighlight") then
+                    local highlight = Instance.new("Highlight")
+                    highlight.Name = "PaperHighlight"
+                    highlight.Parent = paper
+                    highlight.FillColor = ESPColors.Code
+                    highlight.OutlineColor = ESPColors.Code
+                    highlight.FillTransparency = 0.7
+                    highlight.OutlineTransparency = 0
+                end
+            end
+        else
+            if cacheBox then 
+                removeESP(cacheBox)
+                -- Remove highlight
+                local highlight = cacheBox:FindFirstChild("CacheBoxHighlight")
+                if highlight then highlight:Destroy() end
+            end
+            if paper then 
+                removeESP(paper)
+                -- Remove highlight
+                local highlight = paper:FindFirstChild("PaperHighlight")
+                if highlight then highlight:Destroy() end
+            end
+        end
+    end
+end
+
+-- Create UI
+local function createUI()
+    ScreenGui = Instance.new("ScreenGui")
+    ScreenGui.Parent = CoreGui
+    ScreenGui.Name = "Z3U5_ESP"
+    ScreenGui.ResetOnSpawn = false
+    
+    -- Main Button
+    MainButton = Instance.new("TextButton")
+    MainButton.Parent = ScreenGui
+    MainButton.Size = UDim2.new(0, 60, 0, 60)
+    MainButton.Position = UDim2.new(0.5, -30, 0, 10)
+    MainButton.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+    MainButton.BorderSizePixel = 0
+    MainButton.Text = "⚡"
+    MainButton.TextColor3 = Color3.new(1, 1, 1)
+    MainButton.TextScaled = true
+    MainButton.Active = true
+    MainButton.Draggable = true
+    
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(1, 0)
+    corner.Parent = MainButton
+    
+    -- Main Frame
+    MainFrame = Instance.new("Frame")
+    MainFrame.Parent = ScreenGui
+    MainFrame.Size = UDim2.new(0, 200, 0, 250)
+    MainFrame.Position = UDim2.new(0.5, -100, 0, 80)
+    MainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+    MainFrame.BorderSizePixel = 0
+    MainFrame.Visible = false
+    MainFrame.Active = true
+    
+    local mainCorner = Instance.new("UICorner")
+    mainCorner.CornerRadius = UDim.new(0, 10)
+    mainCorner.Parent = MainFrame
+    
+    -- Create toggle buttons
+    local toggles = {"Monster ESP", "Player ESP", "Houses ESP", "Items ESP", "CacheBox ESP", "Teleport", "Others"}
+    for i, name in pairs(toggles) do
+        local button = Instance.new("TextButton")
+        button.Parent = MainFrame
+        button.Size = UDim2.new(1, -10, 0, 30)
+        button.Position = UDim2.new(0, 5, 0, 5 + (i-1) * 35)
+        button.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+        button.Text = name
+        button.TextColor3 = Color3.new(1, 1, 1)
+        button.TextScaled = true
+        button.BorderSizePixel = 0
+        
+        local buttonCorner = Instance.new("UICorner")
+        buttonCorner.CornerRadius = UDim.new(0, 5)
+        buttonCorner.Parent = button
+        
+        -- Button functionality
+        if name == "Monster ESP" then
+            button.MouseButton1Click:Connect(function()
+                ESPToggles.Monster = not ESPToggles.Monster
+                button.BackgroundColor3 = ESPToggles.Monster and Color3.fromRGB(0, 255, 0) or Color3.fromRGB(50, 50, 50)
+                updateMonsterESP()
+            end)
+        elseif name == "Player ESP" then
+            button.MouseButton1Click:Connect(function()
+                ESPToggles.Player = not ESPToggles.Player
+                button.BackgroundColor3 = ESPToggles.Player and Color3.fromRGB(0, 255, 0) or Color3.fromRGB(50, 50, 50)
+                updatePlayerESP()
+            end)
+        elseif name == "Houses ESP" then
+            button.MouseButton1Click:Connect(function()
+                ESPToggles.Houses = not ESPToggles.Houses
+                button.BackgroundColor3 = ESPToggles.Houses and Color3.fromRGB(0, 255, 0) or Color3.fromRGB(50, 50, 50)
+                updateHousesESP()
+            end)
+        elseif name == "Items ESP" then
+            button.MouseButton1Click:Connect(function()
+                ESPToggles.Items = not ESPToggles.Items
+                button.BackgroundColor3 = ESPToggles.Items and Color3.fromRGB(0, 255, 0) or Color3.fromRGB(50, 50, 50)
+                updateItemsESP()
+            end)
+        elseif name == "CacheBox ESP" then
+            button.MouseButton1Click:Connect(function()
+                ESPToggles.CacheBox = not ESPToggles.CacheBox
+                button.BackgroundColor3 = ESPToggles.CacheBox and Color3.fromRGB(0, 255, 0) or Color3.fromRGB(50, 50, 50)
+                updateCacheBoxESP()
+            end)
+        elseif name == "Teleport" then
+            button.MouseButton1Click:Connect(function()
+                TeleportFrame.Visible = not TeleportFrame.Visible
+                local tween = TweenService:Create(TeleportFrame, TweenInfo.new(0.3), {Position = TeleportFrame.Visible and UDim2.new(0.5, 110, 0, 80) or UDim2.new(0.5, 110, 0, -300)})
+                tween:Play()
+            end)
+        elseif name == "Others" then
+            button.MouseButton1Click:Connect(function()
+                OthersFrame.Visible = not OthersFrame.Visible
+                local tween = TweenService:Create(OthersFrame, TweenInfo.new(0.3), {Position = OthersFrame.Visible and UDim2.new(0.5, -310, 0, 80) or UDim2.new(0.5, -310, 0, -300)})
+                tween:Play()
+            end)
+        end
+    end
+    
+    -- Teleport Frame
+    TeleportFrame = Instance.new("ScrollingFrame")
+    TeleportFrame.Parent = ScreenGui
+    TeleportFrame.Size = UDim2.new(0, 180, 0, 300)
+    TeleportFrame.Position = UDim2.new(0.5, 110, 0, -300)
+    TeleportFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+    TeleportFrame.BorderSizePixel = 0
+    TeleportFrame.Visible = false
+    TeleportFrame.CanvasSize = UDim2.new(0, 0, 0, 600)
+    
+    local teleCorner = Instance.new("UICorner")
+    teleCorner.CornerRadius = UDim.new(0, 10)
+    teleCorner.Parent = TeleportFrame
+    
+    -- Add teleport locations
+    local allLocations = {}
+    for _, house in pairs(HousePositions) do
+        table.insert(allLocations, house)
+    end
+    for _, building in pairs(BuildingPositions) do
+        table.insert(allLocations, building)
+    end
+    
+    for i, location in pairs(allLocations) do
+        local teleButton = Instance.new("TextButton")
+        teleButton.Parent = TeleportFrame
+        teleButton.Size = UDim2.new(1, -10, 0, 30)
+        teleButton.Position = UDim2.new(0, 5, 0, 5 + (i-1) * 35)
+        teleButton.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+        teleButton.Text = location.name
+        teleButton.TextColor3 = Color3.new(1, 1, 1)
+        teleButton.TextScaled = true
+        teleButton.BorderSizePixel = 0
+        
+        local teleCorner2 = Instance.new("UICorner")
+        teleCorner2.CornerRadius = UDim.new(0, 5)
+        teleCorner2.Parent = teleButton
+        
+        teleButton.MouseButton1Click:Connect(function()
+            if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+                LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(location.pos)
+            end
+        end)
+    end
+    
+    -- Others Frame
+    OthersFrame = Instance.new("Frame")
+    OthersFrame.Parent = ScreenGui
+    OthersFrame.Size = UDim2.new(0, 180, 0, 140)
+    OthersFrame.Position = UDim2.new(0.5, -310, 0, -300)
+    OthersFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+    OthersFrame.BorderSizePixel = 0
+    OthersFrame.Visible = false
+    
+    local othersCorner = Instance.new("UICorner")
+    othersCorner.CornerRadius = UDim.new(0, 10)
+    othersCorner.Parent = OthersFrame
+    
+    local otherButtons = {"Chat Unlocker", "Invisible", "AntiLag"}
+    local otherScripts = {
+        "https://raw.githubusercontent.com/Z3U5-G106/Script/refs/heads/main/chat-unlocker.lua",
+        "https://raw.githubusercontent.com/Z3U5-G106/Script/refs/heads/main/Z3U5-Invisible.lua",
+        'loadstring(game:HttpGet("https://raw.githubusercontent.com/Z3U5-G106/Script/refs/heads/main/Z3U5-ANTILAG"))()'
+    }
+    
+    for i, name in pairs(otherButtons) do
+        local otherButton = Instance.new("TextButton")
+        otherButton.Parent = OthersFrame
+        otherButton.Size = UDim2.new(1, -10, 0, 35)
+        otherButton.Position = UDim2.new(0, 5, 0, 5 + (i-1) * 40)
+        otherButton.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+        otherButton.Text = name
+        otherButton.TextColor3 = Color3.new(1, 1, 1)
+        otherButton.TextScaled = true
+        otherButton.BorderSizePixel = 0
+        
+        local otherCorner2 = Instance.new("UICorner")
+        otherCorner2.CornerRadius = UDim.new(0, 5)
+        otherCorner2.Parent = otherButton
+        
+        otherButton.MouseButton1Click:Connect(function()
+            if i == 3 then
+                loadstring(game:HttpGet("https://raw.githubusercontent.com/Z3U5-G106/Script/refs/heads/main/Z3U5-ANTILAG"))()
+            else
+                loadstring(game:HttpGet(otherScripts[i]))()
+            end
+        end)
+    end
+    
+    -- Main button click
+    MainButton.MouseButton1Click:Connect(function()
+        MainFrame.Visible = not MainFrame.Visible
+        if not MainFrame.Visible then
+            TeleportFrame.Visible = false
+            OthersFrame.Visible = false
+        end
+        
+        local tween = TweenService:Create(MainFrame, TweenInfo.new(0.3), {
+            Position = MainFrame.Visible and UDim2.new(0.5, -100, 0, 80) or UDim2.new(0.5, -100, 0, -300)
+        })
+        tween:Play()
+    end)
+end
+
+-- Setup connections
+local function setupConnections()
+    -- Monitor workspace changes for ItemSpawners
+    Connections.ItemSpawnerConnection = workspace.ChildAdded:Connect(function(child)
+        if child.Name == "ItemSpawners" then
+            -- Monitor Items folder
+            local itemsFolder = child:WaitForChild("Items", 5)
+            if itemsFolder then
+                itemsFolder.ChildAdded:Connect(function(item)
+                    if ESPToggles.Items then
+                        wait(0.6)
+                        createESP(item, item.Name, ESPColors.Items)
+                    end
+                end)
+                itemsFolder.ChildRemoved:Connect(function(item)
+                    removeESP(item)
+                end)
+            end
+            
+            -- Monitor ShopItemPickups folder
+            local shopItemsFolder = child:WaitForChild("ShopItemPickups", 5)
+            if shopItemsFolder then
+                shopItemsFolder.ChildAdded:Connect(function(item)
+                    if ESPToggles.Items then
+                        wait(0.6)
+                        createESP(item, item.Name, ESPColors.Items)
+                    end
+                end)
+                shopItemsFolder.ChildRemoved:Connect(function(item)
+                    removeESP(item)
+                end)
+            end
+        end
+    end)
+    
+    -- Monitor existing ItemSpawners folders if they already exist
+    local existingItemSpawners = workspace:FindFirstChild("ItemSpawners")
+    if existingItemSpawners then
+        local itemsFolder = existingItemSpawners:FindFirstChild("Items")
+        local shopItemsFolder = existingItemSpawners:FindFirstChild("ShopItemPickups")
+        
+        if itemsFolder then
+            itemsFolder.ChildAdded:Connect(function(item)
+                if ESPToggles.Items then
+                    wait(0.6)
+                    createESP(item, item.Name, ESPColors.Items)
+                end
+            end)
+            itemsFolder.ChildRemoved:Connect(function(item)
+                removeESP(item)
+            end)
+        end
+        
+        if shopItemsFolder then
+            shopItemsFolder.ChildAdded:Connect(function(item)
+                if ESPToggles.Items then
+                    wait(0.6)
+                    createESP(item, item.Name, ESPColors.Items)
+                end
+            end)
+            shopItemsFolder.ChildRemoved:Connect(function(item)
+                removeESP(item)
+            end)
+        end
+    end
+    
+    -- Monitor cache changes
+    Connections.CacheConnection = workspace.ChildAdded:Connect(function(child)
+        if child.Name == "Caches" then
+            child.ChildAdded:Connect(updateCacheBoxESP)
+            child.ChildRemoved:Connect(updateCacheBoxESP)
+        end
+    end)
+    
+    -- Monitor player changes
+    Connections.PlayerConnection = Players.PlayerAdded:Connect(updatePlayerESP)
+    Connections.PlayerLeftConnection = Players.PlayerRemoving:Connect(function(player)
+        if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+            removeESP(player.Character.HumanoidRootPart)
+        end
+    end)
+    
+    -- Update ESP regularly
+    Connections.UpdateConnection = RunService.Heartbeat:Connect(function()
+        updateMonsterESP()
+        updatePlayerESP()
+    end)
+end
+
+-- Initialize script
+createUI()
+setupConnections()
+
+print("Z3U5 ESP Script loaded successfully!")
