@@ -1,0 +1,352 @@
+-- Services
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local TweenService = game:GetService("TweenService")
+
+local player = Players.LocalPlayer
+local character = player.Character or player.CharacterAdded:Wait()
+local hrp = character:WaitForChild("HumanoidRootPart")
+local humanoid = character:WaitForChild("Humanoid")
+
+-- UI Setup
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "ChestFarmGui"
+screenGui.ResetOnSpawn = false
+screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+screenGui.Parent = game:GetService("CoreGui")
+
+-- Main Draggable Container (Made taller to fit 2 options)
+local mainFrame = Instance.new("Frame")
+mainFrame.Name = "MainFrame"
+mainFrame.Size = UDim2.new(0, 180, 0, 100) -- Increased height
+mainFrame.Position = UDim2.new(0, 100, 0, 100)
+mainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+mainFrame.BorderSizePixel = 0
+mainFrame.Parent = screenGui
+mainFrame.Active = true 
+
+local corner = Instance.new("UICorner")
+corner.CornerRadius = UDim.new(0, 8)
+corner.Parent = mainFrame
+
+local stroke = Instance.new("UIStroke")
+stroke.Color = Color3.fromRGB(80, 80, 80)
+stroke.Thickness = 1
+stroke.Parent = mainFrame
+
+-- ==========================================
+-- TOGGLE 1: CHEST FARM
+-- ==========================================
+local toggleBtn1 = Instance.new("Frame")
+toggleBtn1.Name = "ChestToggle"
+toggleBtn1.Size = UDim2.new(0, 40, 0, 20)
+toggleBtn1.Position = UDim2.new(0, 10, 0, 15) -- Positioned near top
+toggleBtn1.BackgroundColor3 = Color3.fromRGB(100, 100, 100)
+toggleBtn1.BorderSizePixel = 0
+toggleBtn1.Parent = mainFrame
+
+local toggleCorner1 = Instance.new("UICorner")
+toggleCorner1.CornerRadius = UDim.new(1, 0)
+toggleCorner1.Parent = toggleBtn1
+
+local toggleCircle1 = Instance.new("Frame")
+toggleCircle1.Size = UDim2.new(0, 16, 0, 16)
+toggleCircle1.Position = UDim2.new(0, 2, 0.5, -8)
+toggleCircle1.BackgroundColor3 = Color3.fromRGB(200, 200, 200)
+toggleCircle1.BorderSizePixel = 0
+toggleCircle1.Parent = toggleBtn1
+
+local circleCorner1 = Instance.new("UICorner")
+circleCorner1.CornerRadius = UDim.new(1, 0)
+circleCorner1.Parent = toggleCircle1
+
+local statusLabel1 = Instance.new("TextLabel")
+statusLabel1.Name = "Status"
+statusLabel1.Size = UDim2.new(1, -60, 0, 20)
+statusLabel1.Position = UDim2.new(0, 60, 0, 15)
+statusLabel1.BackgroundTransparency = 1
+statusLabel1.Text = "FARM"
+statusLabel1.TextColor3 = Color3.fromRGB(200, 200, 200)
+statusLabel1.Font = Enum.Font.GothamBold
+statusLabel1.TextSize = 12
+statusLabel1.TextXAlignment = Enum.TextXAlignment.Left
+statusLabel1.Parent = mainFrame
+
+-- ==========================================
+-- TOGGLE 2: AUTO SPIN
+-- ==========================================
+local toggleBtn2 = Instance.new("Frame")
+toggleBtn2.Name = "SpinToggle"
+toggleBtn2.Size = UDim2.new(0, 40, 0, 20)
+toggleBtn2.Position = UDim2.new(0, 10, 0, 60) -- Positioned below first toggle
+toggleBtn2.BackgroundColor3 = Color3.fromRGB(100, 100, 100)
+toggleBtn2.BorderSizePixel = 0
+toggleBtn2.Parent = mainFrame
+
+local toggleCorner2 = Instance.new("UICorner")
+toggleCorner2.CornerRadius = UDim.new(1, 0)
+toggleCorner2.Parent = toggleBtn2
+
+local toggleCircle2 = Instance.new("Frame")
+toggleCircle2.Size = UDim2.new(0, 16, 0, 16)
+toggleCircle2.Position = UDim2.new(0, 2, 0.5, -8)
+toggleCircle2.BackgroundColor3 = Color3.fromRGB(200, 200, 200)
+toggleCircle2.BorderSizePixel = 0
+toggleCircle2.Parent = toggleBtn2
+
+local circleCorner2 = Instance.new("UICorner")
+circleCorner2.CornerRadius = UDim.new(1, 0)
+circleCorner2.Parent = toggleCircle2
+
+local statusLabel2 = Instance.new("TextLabel")
+statusLabel2.Name = "Status"
+statusLabel2.Size = UDim2.new(1, -60, 0, 20)
+statusLabel2.Position = UDim2.new(0, 60, 0, 60)
+statusLabel2.BackgroundTransparency = 1
+statusLabel2.Text = "AUTO SPIN"
+statusLabel2.TextColor3 = Color3.fromRGB(200, 200, 200)
+statusLabel2.Font = Enum.Font.GothamBold
+statusLabel2.TextSize = 12
+statusLabel2.TextXAlignment = Enum.TextXAlignment.Left
+statusLabel2.Parent = mainFrame
+
+-- ==========================================
+-- DRAGGING LOGIC
+-- ==========================================
+local dragging, dragInput, dragStart, startPos
+
+mainFrame.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        dragging = true
+        dragStart = input.Position
+        startPos = mainFrame.Position
+
+        input.Changed:Connect(function()
+            if input.UserInputState == Enum.UserInputState.End then
+                dragging = false
+            end
+        end)
+    end
+end)
+
+mainFrame.InputChanged:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+        dragInput = input
+    end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+    if input == dragInput and dragging then
+        local delta = input.Position - dragStart
+        mainFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+    end
+end)
+
+-- ==========================================
+-- CHEST FARM VARIABLES & LOGIC
+-- ==========================================
+local isChestEnabled = false
+local chestLoopThread = nil
+local noclipConnection = nil
+
+local chestCoords = {
+    Vector3.new(-169.76, 5.95, -954.68),
+    Vector3.new(-1230.48, 5.95, 88.88),
+    Vector3.new(-172.29, 4.76, 406.30),
+    Vector3.new(890.51, 5.95, 124.75)
+}
+local restPosition = Vector3.new(-169.65, -50, 109.12)
+
+local function enableNoclip()
+    if noclipConnection then return end
+    noclipConnection = RunService.Stepped:Connect(function()
+        if character then
+            for _, part in pairs(character:GetDescendants()) do
+                if part:IsA("BasePart") then
+                    part.CanCollide = false
+                end
+            end
+        end
+    end)
+end
+
+local function disableNoclip()
+    if noclipConnection then
+        noclipConnection:Disconnect()
+        noclipConnection = nil
+        if character then
+            for _, part in pairs(character:GetDescendants()) do
+                if part:IsA("BasePart") then
+                    part.CanCollide = true
+                end
+            end
+        end
+    end
+end
+
+local function freezePlayer()
+    if humanoid then
+        humanoid.WalkSpeed = 0
+        humanoid.JumpPower = 0
+        humanoid.AutoRotate = false
+    end
+    if hrp then
+        hrp.Anchored = true
+    end
+end
+
+local function unfreezePlayer()
+    if hrp then
+        hrp.Anchored = false
+    end
+    if humanoid then
+        humanoid.WalkSpeed = 16
+        humanoid.JumpPower = 50
+        humanoid.AutoRotate = true
+    end
+end
+
+local function doChestLoop()
+    unfreezePlayer()
+    
+    for _, coord in ipairs(chestCoords) do
+        hrp.CFrame = CFrame.new(coord)
+        task.wait(0.5) 
+        
+        local button = player.PlayerGui:FindFirstChild("ChestsScreenGui")
+        if button then
+            button = button:FindFirstChild("ChestsFrame")
+            if button then
+                button = button:FindFirstChild("ClaimButtonNormal")
+                if button then
+                    firesignal(button.Activated)
+                end
+            end
+        end
+        task.wait(0.5)
+    end
+    
+    hrp.CFrame = CFrame.new(restPosition)
+    task.wait(0.2)
+    freezePlayer()
+end
+
+local function startChestLoop()
+    enableNoclip()
+    task.spawn(doChestLoop)
+    chestLoopThread = task.spawn(function()
+        while isChestEnabled do
+            task.wait(61)
+            if isChestEnabled then
+                doChestLoop()
+            end
+        end
+    end)
+end
+
+local function stopChestLoop()
+    disableNoclip()
+    unfreezePlayer()
+end
+
+-- ==========================================
+-- AUTO SPIN VARIABLES & LOGIC
+-- ==========================================
+local isSpinEnabled = false
+local spinLoopThread = nil
+
+local function startSpinLoop()
+    spinLoopThread = task.spawn(function()
+        while isSpinEnabled do
+            local button = player.PlayerGui:FindFirstChild("MainHUD")
+            if button then
+                button = button:FindFirstChild("Holder")
+                if button then
+                    button = button:FindFirstChild("Wheel")
+                    if button then
+                        button = button:FindFirstChild("Buttons")
+                        if button then
+                            button = button:FindFirstChild("SpinButton")
+                            if button then
+                                firesignal(button.Activated)
+                            end
+                        end
+                    end
+                end
+            end
+            task.wait(1.5) -- Strictly using your requested 1.5s wait
+        end
+    end)
+end
+
+local function stopSpinLoop()
+    -- The while loop automatically breaks when isSpinEnabled becomes false
+end
+
+-- ==========================================
+-- TOGGLE CLICK LOGIC
+-- ==========================================
+toggleBtn1.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        if math.abs((input.Position - dragStart).X) > 5 or math.abs((input.Position - dragStart).Y) > 5 then return end
+
+        isChestEnabled = not isChestEnabled
+
+        if isChestEnabled then
+            TweenService:Create(toggleBtn1, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(0, 150, 0)}):Play()
+            TweenService:Create(toggleCircle1, TweenInfo.new(0.2), {Position = UDim2.new(0, 22, 0.5, -8)}):Play()
+            statusLabel1.TextColor3 = Color3.fromRGB(0, 255, 0)
+            startChestLoop()
+        else
+            TweenService:Create(toggleBtn1, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(100, 100, 100)}):Play()
+            TweenService:Create(toggleCircle1, TweenInfo.new(0.2), {Position = UDim2.new(0, 2, 0.5, -8)}):Play()
+            statusLabel1.TextColor3 = Color3.fromRGB(200, 200, 200)
+            stopChestLoop()
+        end
+    end
+end)
+
+toggleBtn2.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        if math.abs((input.Position - dragStart).X) > 5 or math.abs((input.Position - dragStart).Y) > 5 then return end
+
+        isSpinEnabled = not isSpinEnabled
+
+        if isSpinEnabled then
+            TweenService:Create(toggleBtn2, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(0, 150, 0)}):Play()
+            TweenService:Create(toggleCircle2, TweenInfo.new(0.2), {Position = UDim2.new(0, 22, 0.5, -8)}):Play()
+            statusLabel2.TextColor3 = Color3.fromRGB(0, 255, 0)
+            startSpinLoop()
+        else
+            TweenService:Create(toggleBtn2, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(100, 100, 100)}):Play()
+            TweenService:Create(toggleCircle2, TweenInfo.new(0.2), {Position = UDim2.new(0, 2, 0.5, -8)}):Play()
+            statusLabel2.TextColor3 = Color3.fromRGB(200, 200, 200)
+            stopSpinLoop()
+        end
+    end
+end)
+
+-- Safety: Handle character respawning
+player.CharacterAdded:Connect(function(char)
+    character = char
+    hrp = char:WaitForChild("HumanoidRootPart")
+    humanoid = char:WaitForChild("Humanoid")
+    
+    if isChestEnabled then
+        enableNoclip()
+        hrp.CFrame = CFrame.new(restPosition)
+        freezePlayer()
+    end
+end)
+
+--antiafk
+local key = 0x7C -- F13
+local interval = 5
+
+while true do
+    keypress(key)
+    task.wait(0.05)
+    keyrelease(key)
+    task.wait(interval)
+end
