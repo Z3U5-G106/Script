@@ -1,0 +1,666 @@
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local TweenService = game:GetService("TweenService")
+local RunService = game:GetService("RunService")
+local player = Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
+
+local function new(class, parent, props)
+    local inst = Instance.new(class)
+    for k, v in pairs(props) do inst[k] = v end
+    inst.Parent = parent
+    return inst
+end
+
+local Z = {}
+
+local function buildLogo()
+    local screenGui = new("ScreenGui", playerGui, {Name = "Z3U5_GUI", ResetOnSpawn = false, ZIndexBehavior = Enum.ZIndexBehavior.Sibling})
+    Z.screenGui = screenGui
+    local BS = 80
+    Z.BS = BS
+    local btn = new("Frame", screenGui, {Name = "ToggleButton", Size = UDim2.fromOffset(BS, BS), BackgroundTransparency = 1, Position = UDim2.new(0.5, -BS / 2, 0, 20)})
+    Z.toggleButton = btn
+    new("UICorner", new("Frame", btn, {Name = "OuterCircle", Size = UDim2.fromScale(1, 1), BackgroundColor3 = Color3.fromRGB(128, 128, 128), BackgroundTransparency = 0.5}), {CornerRadius = UDim.new(1, 0)})
+    local s = 0.75
+    new("UICorner", new("Frame", btn, {Name = "InnerCircle", Size = UDim2.fromScale(s, s), Position = UDim2.fromScale((1 - s) / 2, (1 - s) / 2), BackgroundColor3 = Color3.fromRGB(255, 255, 255)}), {CornerRadius = UDim.new(1, 0)})
+    new("TextLabel", btn, {Name = "TitleText", Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1, Text = "Z3U5", Font = Enum.Font.Kalam, TextColor3 = Color3.fromRGB(218, 111, 119), TextStrokeColor3 = Color3.fromRGB(255, 255, 255), TextStrokeTransparency = 0, TextScaled = true, ZIndex = 2})
+end
+
+local function buildMainPanel()
+    local PW = 200
+    local PP = 12
+    local RH = 36
+    local RS = 6
+    local PC = 12
+    local PG = 8
+    Z.PW = PW
+    Z.PP = PP
+    Z.RH = RH
+    Z.RS = RS
+    Z.PC = PC
+    Z.PG = PG
+
+    local panel = new("Frame", Z.screenGui, {Name = "Panel", Size = UDim2.fromOffset(PW, 0), BackgroundTransparency = 1, Visible = false, ClipsDescendants = true})
+    Z.panel = panel
+    local bg = new("Frame", panel, {Name = "Background", Size = UDim2.fromScale(1, 1), BackgroundColor3 = Color3.fromRGB(45, 45, 45), BackgroundTransparency = 0.35, BorderSizePixel = 0, ZIndex = 0})
+    new("UICorner", bg, {CornerRadius = UDim.new(0, PC)})
+    new("UIStroke", bg, {Color = Color3.fromRGB(255, 255, 255), Transparency = 0.8, Thickness = 1})
+    local content = new("Frame", panel, {Name = "Content", Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1, ZIndex = 1})
+    new("UIPadding", content, {PaddingTop = UDim.new(0, PP), PaddingBottom = UDim.new(0, PP), PaddingLeft = UDim.new(0, PP), PaddingRight = UDim.new(0, PP)})
+    new("UIListLayout", content, {SortOrder = Enum.SortOrder.LayoutOrder, Padding = UDim.new(0, RS)})
+    Z.panelHeight = (5 * RH) + (4 * RS) + (PP * 2)
+    panel.Size = UDim2.fromOffset(PW, Z.panelHeight)
+end
+
+local function buildTeleportPanel()
+    local TW = 180
+    local TG = 6
+    local TRH = 28
+    local TRS = 3
+    local TSH = 20
+    local AS = 0.25
+    Z.TW = TW
+    Z.TG = TG
+    Z.TRH = TRH
+    Z.TRS = TRS
+    Z.AS = AS
+
+    local tp = new("Frame", Z.screenGui, {Name = "TeleportPanel", Size = UDim2.fromOffset(TW, Z.panelHeight), BackgroundTransparency = 1, Visible = false, ClipsDescendants = true})
+    Z.teleportPanel = tp
+    local bg = new("Frame", tp, {Size = UDim2.fromScale(1, 1), BackgroundColor3 = Color3.fromRGB(45, 45, 45), BackgroundTransparency = 0.35, BorderSizePixel = 0, ZIndex = 0})
+    new("UICorner", bg, {CornerRadius = UDim.new(0, Z.PC)})
+    new("UIStroke", bg, {Color = Color3.fromRGB(255, 255, 255), Transparency = 0.8, Thickness = 1})
+    local scroll = new("ScrollingFrame", tp, {Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1, ScrollBarThickness = 3, ScrollBarImageColor3 = Color3.fromRGB(255, 255, 255), ScrollBarImageTransparency = 0.6, BorderSizePixel = 0, ZIndex = 1})
+    new("UIPadding", scroll, {PaddingTop = UDim.new(0, Z.PP), PaddingBottom = UDim.new(0, Z.PP), PaddingLeft = UDim.new(0, Z.PP), PaddingRight = UDim.new(0, Z.PP)})
+    local list = new("UIListLayout", scroll, {SortOrder = Enum.SortOrder.LayoutOrder, Padding = UDim.new(0, TRS)})
+    Z.tpList = list
+    Z.tpScroll = scroll
+    Z.tpOrder = 0
+
+    local function section(text)
+        Z.tpOrder = Z.tpOrder + 1
+        new("TextLabel", scroll, {Size = UDim2.fromOffset(TW - Z.PP * 2, TSH), BackgroundTransparency = 1, Text = text, Font = Enum.Font.GothamBold, TextSize = 11, TextColor3 = Color3.fromRGB(218, 111, 119), TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 2, LayoutOrder = Z.tpOrder})
+    end
+
+    local function btn(name, x, y, z)
+        Z.tpOrder = Z.tpOrder + 1
+        local row = new("Frame", scroll, {Size = UDim2.fromOffset(TW - Z.PP * 2, TRH), BackgroundColor3 = Color3.fromRGB(255, 255, 255), BackgroundTransparency = 0.9, BorderSizePixel = 0, ZIndex = 2, LayoutOrder = Z.tpOrder})
+        new("UICorner", row, {CornerRadius = UDim.new(0, 6)})
+        new("UIPadding", new("TextLabel", row, {Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1, Text = name, Font = Enum.Font.Gotham, TextSize = 12, TextColor3 = Color3.fromRGB(210, 210, 210), TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 3}), {PaddingLeft = UDim.new(0, 8)})
+        row.InputBegan:Connect(function(input)
+            if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+                local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+                if root then root.CFrame = CFrame.new(x, y, z) end
+                TweenService:Create(row, TweenInfo.new(0.15), {BackgroundTransparency = 0.7}):Play()
+                task.delay(0.15, function()
+                    TweenService:Create(row, TweenInfo.new(0.2), {BackgroundTransparency = 0.9}):Play()
+                end)
+            end
+        end)
+    end
+
+    section("LOCATIONS")
+    btn("Powerstation", -526.68, -17.41, 493.77)
+    btn("Church", 379.87, 50.82, -65.99)
+    btn("Store", 168.49, 29.03, -40.24)
+    btn("Tavern", 122.59, 30.35, -89.32)
+    btn("Water Tank", -422.26, 19.68, -317.82)
+    btn("Dealer", -314.02, 40.72, 214.37)
+    btn("Gazebo", -230.69, 34.67, 100.43)
+    section("HOUSES")
+    btn("House 1", -258.42, 37.87, -430.45)
+    btn("House 2", -71.01, 33.06, -174.39)
+    btn("House 3", 89.80, 35.80, -217.01)
+    btn("House 4", 25.61, 45.11, -442.87)
+    btn("House 5", 270.06, 43.49, -465.12)
+    btn("House 6", -34.49, 24.80, 91.93)
+    btn("House 7", 207.80, 40.20, 359.04)
+    btn("House 8", -265.26, -8.61, 398.87)
+    btn("House 9", -544.17, 21.71, 62.06)
+    btn("House 10", -319.57, 29.70, -127.37)
+    btn("House 11", -585.18, 33.39, -289.32)
+
+    list:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+        scroll.CanvasSize = UDim2.fromOffset(0, list.AbsoluteContentSize.Y + Z.PP)
+    end)
+    scroll.CanvasSize = UDim2.fromOffset(0, list.AbsoluteContentSize.Y + Z.PP)
+end
+
+local function buildOtherPanel()
+    local OW = 160
+    local OG = 6
+    local ORH = 34
+    local ORS = 4
+    Z.OW = OW
+    Z.OG = OG
+
+    local op = new("Frame", Z.screenGui, {Name = "OtherPanel", Size = UDim2.fromOffset(OW, Z.panelHeight), BackgroundTransparency = 1, Visible = false, ClipsDescendants = true})
+    Z.otherPanel = op
+    local bg = new("Frame", op, {Size = UDim2.fromScale(1, 1), BackgroundColor3 = Color3.fromRGB(45, 45, 45), BackgroundTransparency = 0.35, BorderSizePixel = 0, ZIndex = 0})
+    new("UICorner", bg, {CornerRadius = UDim.new(0, Z.PC)})
+    new("UIStroke", bg, {Color = Color3.fromRGB(255, 255, 255), Transparency = 0.8, Thickness = 1})
+    local content = new("Frame", op, {Name = "Content", Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1, ZIndex = 1})
+    new("UIPadding", content, {PaddingTop = UDim.new(0, Z.PP), PaddingBottom = UDim.new(0, Z.PP), PaddingLeft = UDim.new(0, Z.PP), PaddingRight = UDim.new(0, Z.PP)})
+    local list = new("UIListLayout", content, {SortOrder = Enum.SortOrder.LayoutOrder, Padding = UDim.new(0, ORS)})
+
+    local scripts = {
+        {"AntiLag", "https://raw.githubusercontent.com/Gios1009/Script/refs/heads/main/AntiLag"},
+        {"Fly GUI", "https://rawscripts.net/raw/Universal-Script-Better-Fly-GUI-44304"},
+        {"Infinite Yield", "https://raw.githubusercontent.com/EdgeIY/infiniteyield/master/source"}
+    }
+
+    for i, data in ipairs(scripts) do
+        local row = new("Frame", content, {Size = UDim2.fromOffset(OW - Z.PP * 2, ORH), BackgroundColor3 = Color3.fromRGB(255, 255, 255), BackgroundTransparency = 0.9, BorderSizePixel = 0, ZIndex = 2, LayoutOrder = i})
+        new("UICorner", row, {CornerRadius = UDim.new(0, 6)})
+        new("UIPadding", new("TextLabel", row, {Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1, Text = data[1], Font = Enum.Font.Gotham, TextSize = 12, TextColor3 = Color3.fromRGB(210, 210, 210), TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 3}), {PaddingLeft = UDim.new(0, 8)})
+        local url = data[2]
+        row.InputBegan:Connect(function(input)
+            if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+                TweenService:Create(row, TweenInfo.new(0.15), {BackgroundTransparency = 0.7}):Play()
+                task.delay(0.15, function()
+                    TweenService:Create(row, TweenInfo.new(0.2), {BackgroundTransparency = 0.9}):Play()
+                end)
+                task.spawn(function()
+                    loadstring(game:HttpGet(url))()
+                end)
+            end
+        end)
+    end
+end
+
+local function buildToggleButtons()
+    local content = Z.panel:FindFirstChild("Content")
+    Z.toggleFunctions = {}
+
+    local toggles = {"ESP Wendigo", "ESP Player", "ESP Houses"}
+    for i, name in ipairs(toggles) do
+        local row = new("Frame", content, {Size = UDim2.fromOffset(Z.PW - Z.PP * 2, Z.RH), BackgroundColor3 = Color3.fromRGB(255, 255, 255), BackgroundTransparency = 0.88, BorderSizePixel = 0, LayoutOrder = i, ZIndex = 2})
+        new("UICorner", row, {CornerRadius = UDim.new(0, 8)})
+        new("TextLabel", row, {Size = UDim2.new(1, -44, 1, 0), Position = UDim2.fromOffset(12, 0), BackgroundTransparency = 1, Text = name, Font = Enum.Font.Gotham, TextSize = 13, TextColor3 = Color3.fromRGB(210, 210, 210), TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 3})
+        local ind = new("Frame", row, {Size = UDim2.fromOffset(18, 18), Position = UDim2.new(1, -28, 0.5, -9), BackgroundColor3 = Color3.fromRGB(80, 80, 80), BackgroundTransparency = 0.2, ZIndex = 3})
+        new("UICorner", ind, {CornerRadius = UDim.new(1, 0)})
+        local active = false
+        row.InputBegan:Connect(function(input)
+            if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+                active = not active
+                TweenService:Create(ind, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {BackgroundColor3 = active and Color3.fromRGB(218, 111, 119) or Color3.fromRGB(80, 80, 80), BackgroundTransparency = active and 0 or 0.2}):Play()
+                TweenService:Create(row, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {BackgroundTransparency = active and 0.82 or 0.88}):Play()
+                if Z.toggleFunctions[name] then Z.toggleFunctions[name](active) end
+            end
+        end)
+    end
+
+    local presses = {"Teleport", "Other"}
+    for i, name in ipairs(presses) do
+        local row = new("Frame", content, {Size = UDim2.fromOffset(Z.PW - Z.PP * 2, Z.RH), BackgroundColor3 = Color3.fromRGB(255, 255, 255), BackgroundTransparency = 0.88, BorderSizePixel = 0, LayoutOrder = i + 3, ZIndex = 2})
+        new("UICorner", row, {CornerRadius = UDim.new(0, 8)})
+        new("TextLabel", row, {Size = UDim2.fromScale(1, 1), Position = UDim2.fromOffset(12, 0), BackgroundTransparency = 1, Text = name, Font = Enum.Font.Gotham, TextSize = 13, TextColor3 = Color3.fromRGB(210, 210, 210), TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 3})
+        row.InputBegan:Connect(function(input)
+            if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+                TweenService:Create(row, TweenInfo.new(0.1), {BackgroundTransparency = 0.75}):Play()
+                task.delay(0.1, function()
+                    TweenService:Create(row, TweenInfo.new(0.15), {BackgroundTransparency = 0.88}):Play()
+                end)
+                if Z.toggleFunctions[name] then Z.toggleFunctions[name]() end
+            end
+        end)
+    end
+end
+
+local function buildDrag()
+    local btn = Z.toggleButton
+    local panel = Z.panel
+    local tp = Z.teleportPanel
+    local op = Z.otherPanel
+    local dragging = false
+    local ds = Vector3.new()
+    local ls = UDim2.new()
+    local ps = UDim2.new()
+    local ts = UDim2.new()
+    local os = UDim2.new()
+
+    function Z.sync()
+        panel.Position = UDim2.new(btn.Position.X.Scale, btn.Position.X.Offset + (Z.BS / 2) - (Z.PW / 2), btn.Position.Y.Scale, btn.Position.Y.Offset + Z.BS + Z.PG)
+        tp.Position = UDim2.new(panel.Position.X.Scale, panel.Position.X.Offset + Z.PW + Z.TG, panel.Position.Y.Scale, panel.Position.Y.Offset)
+        op.Position = UDim2.new(panel.Position.X.Scale, panel.Position.X.Offset - Z.OW - Z.OG, panel.Position.Y.Scale, panel.Position.Y.Offset)
+    end
+
+    btn.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = true
+            ds = input.Position
+            ls = btn.Position
+            ps = panel.Position
+            ts = tp.Position
+            os = op.Position
+            input.Changed:Connect(function()
+                if input.UserInputState == Enum.UserInputState.End then dragging = false end
+            end)
+        end
+    end)
+
+    btn.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then dragging = false end
+    end)
+
+    UserInputService.InputChanged:Connect(function(input)
+        if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+            local dx = input.Position.X - ds.X
+            local dy = input.Position.Y - ds.Y
+            btn.Position = UDim2.new(ls.X.Scale, ls.X.Offset + dx, ls.Y.Scale, ls.Y.Offset + dy)
+            panel.Position = UDim2.new(ps.X.Scale, ps.X.Offset + dx, ps.Y.Scale, ps.Y.Offset + dy)
+            tp.Position = UDim2.new(ts.X.Scale, ts.X.Offset + dx, ts.Y.Scale, ts.Y.Offset + dy)
+            op.Position = UDim2.new(os.X.Scale, os.X.Offset + dx, os.Y.Scale, os.Y.Offset + dy)
+        end
+    end)
+end
+
+local function buildOpenClose()
+    local panel = Z.panel
+    local tp = Z.teleportPanel
+    local op = Z.otherPanel
+    Z.panelVisible = false
+
+    local function enableMouse()
+        RunService:BindToRenderStep("Z3U5_FreeMouse", Enum.RenderPriority.Last.Value, function()
+            UserInputService.MouseBehavior = Enum.MouseBehavior.Default
+            UserInputService.MouseIconEnabled = true
+        end)
+    end
+
+    local function disableMouse()
+        RunService:UnbindFromRenderStep("Z3U5_FreeMouse")
+        UserInputService.MouseBehavior = Enum.MouseBehavior.Default
+    end
+
+    local function open()
+        panel.Visible = true
+        Z.sync()
+        enableMouse()
+        panel.Size = UDim2.fromOffset(Z.PW, 0)
+        TweenService:Create(panel, TweenInfo.new(Z.AS, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Size = UDim2.fromOffset(Z.PW, Z.panelHeight)}):Play()
+    end
+
+    local function close()
+        disableMouse()
+        local t = TweenService:Create(panel, TweenInfo.new(Z.AS, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {Size = UDim2.fromOffset(Z.PW, 0)})
+        t:Play()
+        t.Completed:Connect(function()
+            panel.Visible = false
+            tp.Visible = false
+            op.Visible = false
+        end)
+    end
+
+    function Z.togglePanel()
+        Z.panelVisible = not Z.panelVisible
+        if Z.panelVisible then open() else close() end
+    end
+
+    local cs = Vector3.new()
+    Z.toggleButton.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then cs = input.Position end
+    end)
+    Z.toggleButton.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            if (input.Position - cs).Magnitude < 5 then Z.togglePanel() end
+        end
+    end)
+
+    UserInputService.InputBegan:Connect(function(input, gp)
+        if not gp and input.KeyCode == Enum.KeyCode.Z then Z.togglePanel() end
+    end)
+end
+
+local function buildHouseData()
+    Z.HOUSE_LOCS = {
+        {n = "Powerstation", x = -526.68, y = -17.41, z = 493.77},
+        {n = "Church", x = 379.87, y = 50.82, z = -65.99},
+        {n = "Store", x = 168.49, y = 29.03, z = -40.24},
+        {n = "Tavern", x = 122.59, y = 30.35, z = -89.32},
+        {n = "Water Tank", x = -422.26, y = 19.68, z = -317.82},
+        {n = "Dealer", x = -314.02, y = 40.72, z = 214.37},
+        {n = "Gazebo", x = -230.69, y = 34.67, z = 100.43},
+        {n = "House 1", x = -258.42, y = 37.87, z = -430.45},
+        {n = "House 2", x = -71.01, y = 33.06, z = -174.39},
+        {n = "House 3", x = 89.80, y = 35.80, z = -217.01},
+        {n = "House 4", x = 25.61, y = 45.11, z = -442.87},
+        {n = "House 5", x = 270.06, y = 43.49, z = -465.12},
+        {n = "House 6", x = -34.49, y = 24.80, z = 91.93},
+        {n = "House 7", x = 207.80, y = 40.20, z = 359.04},
+        {n = "House 8", x = -265.26, y = -8.61, z = 398.87},
+        {n = "House 9", x = -544.17, y = 21.71, z = 62.06},
+        {n = "House 10", x = -319.57, y = 29.70, z = -127.37},
+        {n = "House 11", x = -585.18, y = 33.39, z = -289.32}
+    }
+end
+
+local function buildFeatures()
+    local F = {}
+
+    F["ESP Wendigo"] = {
+        active = false, connections = {}, objects = {},
+        start = function(self)
+            self.active = true
+            local lp = Players.LocalPlayer
+            local function getRoot(m)
+                if not m then return nil end
+                local r = m:FindFirstChild("HumanoidRootPart")
+                if r then return r end
+                local h = m:FindFirstChild("Head")
+                if h then return h end
+                for _, c in m:GetChildren() do if c:IsA("BasePart") then return c end end
+                return nil
+            end
+            local function applyESP(model)
+                if not model or not model.Parent or model:FindFirstChild("Z3U5_WB") then return end
+                local root = getRoot(model)
+                if not root then model.DescendantAdded:Wait(); root = getRoot(model); end
+                if not root then return end
+                local bb = new("BillboardGui", model, {Name = "Z3U5_WB", Adornee = root, Size = UDim2.fromOffset(200, 50), StudsOffset = Vector3.new(0, 3, 0), AlwaysOnTop = true})
+                new("TextLabel", bb, {Name = "N", Size = UDim2.fromScale(1, 0.5), BackgroundTransparency = 1, Text = "Wendigo", TextColor3 = Color3.fromRGB(255, 80, 80), Font = Enum.Font.GothamBold, TextSize = 14, TextStrokeTransparency = 0.5})
+                new("TextLabel", bb, {Name = "D", Size = UDim2.fromScale(1, 0.5), Position = UDim2.fromScale(0, 0.5), BackgroundTransparency = 1, Text = "--m", TextColor3 = Color3.fromRGB(255, 150, 150), Font = Enum.Font.Gotham, TextSize = 12, TextStrokeTransparency = 0.5})
+                table.insert(self.objects, bb)
+                table.insert(self.objects, new("Highlight", model, {Name = "Z3U5_WH", FillColor = Color3.fromRGB(255, 30, 30), OutlineColor = Color3.fromRGB(255, 100, 100), FillTransparency = 0.4, OutlineTransparency = 0}))
+            end
+            local function navPath(p)
+                local parts = p:split(".")
+                local cur = workspace
+                for i, n in ipairs(parts) do
+                    local c = cur:FindFirstChild(n)
+                    if c then
+                        if i == #parts then return c, cur end
+                        cur = c
+                    else return nil, cur end
+                end
+                return nil, cur
+            end
+            local function watchWendigo(par)
+                local e = par:FindFirstChild("Wendigo")
+                if e then task.spawn(applyESP, e) end
+                table.insert(self.connections, par.ChildAdded:Connect(function(c)
+                    if c.Name == "Wendigo" then task.spawn(applyESP, c) end
+                end))
+            end
+            local PATH = "NPC.Enemy.Wendigo"
+            local target, watchPar = navPath(PATH)
+            if target then task.spawn(applyESP, target) end
+            if watchPar and watchPar.Name ~= "Wendigo" then watchWendigo(watchPar) end
+            local function watchRemove(model)
+                table.insert(self.connections, model.AncestryChanged:Connect(function(_, np)
+                    if not np then
+                        for i = #self.objects, 1, -1 do
+                            if self.objects[i].Parent and self.objects[i]:IsDescendantOf(model) then
+                                self.objects[i]:Destroy()
+                                table.remove(self.objects, i)
+                            end
+                        end
+                        if self.active then
+                            task.delay(0.5, function()
+                                if not self.active then return end
+                                local f, fp = navPath(PATH)
+                                if f then task.spawn(applyESP, f)
+                                elseif fp then watchWendigo(fp) end
+                            end)
+                        end
+                    end
+                end))
+            end
+            local cw = workspace:FindFirstChild("NPC") and workspace.NPC:FindFirstChild("Enemy") and workspace.NPC.Enemy:FindFirstChild("Wendigo")
+            if cw then watchRemove(cw) end
+            if workspace:FindFirstChild("NPC") and workspace.NPC:FindFirstChild("Enemy") then
+                table.insert(self.connections, workspace.NPC.Enemy.ChildAdded:Connect(function(c)
+                    if c.Name == "Wendigo" then watchRemove(c) end
+                end))
+            end
+            if not workspace:FindFirstChild("NPC") then
+                table.insert(self.connections, workspace.ChildAdded:Connect(function(c)
+                    if c.Name == "NPC" then
+                        task.spawn(function()
+                            c:WaitForChild("Enemy", 10)
+                            if c:FindFirstChild("Enemy") then watchWendigo(c.Enemy) end
+                        end)
+                    end
+                end))
+            elseif not workspace.NPC:FindFirstChild("Enemy") then
+                table.insert(self.connections, workspace.ChildAdded:Connect(function(c)
+                    if c.Name == "Enemy" then watchWendigo(c) end
+                end))
+            end
+            table.insert(self.connections, RunService.Heartbeat:Connect(function()
+                if not self.active then return end
+                local lc = lp.Character
+                if not lc then return end
+                local lr = lc:FindFirstChild("HumanoidRootPart")
+                if not lr then return end
+                local w = workspace:FindFirstChild("NPC") and workspace.NPC:FindFirstChild("Enemy") and workspace.NPC.Enemy:FindFirstChild("Wendigo")
+                if not w then return end
+                local bb = w:FindFirstChild("Z3U5_WB")
+                if not bb then return end
+                local wr = getRoot(w)
+                if not wr then return end
+                local dl = bb:FindFirstChild("D")
+                if dl then dl.Text = math.floor((lr.Position - wr.Position).Magnitude) .. "m" end
+            end))
+            print("[Z3U5] ESP Wendigo: ON")
+        end,
+        stop = function(self)
+            self.active = false
+            for i = 1, #self.objects do if self.objects[i].Parent then self.objects[i]:Destroy() end end
+            for i = 1, #self.connections do if self.connections[i] then self.connections[i]:Disconnect() end end
+            self.objects = {}
+            self.connections = {}
+            print("[Z3U5] ESP Wendigo: OFF")
+        end
+    }
+
+    F["ESP Player"] = {
+        active = false, connections = {}, objects = {},
+        start = function(self)
+            self.active = true
+            local lp = Players.LocalPlayer
+            local function addBB(char, pname)
+                if char:FindFirstChild("Z3U5_BB") then return end
+                local head = char:FindFirstChild("Head")
+                if not head then return end
+                local bb = new("BillboardGui", char, {Name = "Z3U5_BB", Adornee = head, Size = UDim2.fromOffset(200, 50), StudsOffset = Vector3.new(0, 3, 0), AlwaysOnTop = true})
+                new("TextLabel", bb, {Name = "N", Size = UDim2.fromScale(1, 0.5), BackgroundTransparency = 1, Text = pname, TextColor3 = Color3.fromRGB(255, 255, 255), Font = Enum.Font.GothamBold, TextSize = 14, TextStrokeTransparency = 0.5})
+                new("TextLabel", bb, {Name = "D", Size = UDim2.fromScale(1, 0.5), Position = UDim2.fromScale(0, 0.5), BackgroundTransparency = 1, Text = "--m", TextColor3 = Color3.fromRGB(180, 200, 255), Font = Enum.Font.Gotham, TextSize = 12, TextStrokeTransparency = 0.5})
+                table.insert(self.objects, bb)
+            end
+            local function onChar(char)
+                local p = Players:GetPlayerFromCharacter(char)
+                if not p or p == lp then return end
+                char:WaitForChild("Head")
+                addBB(char, p.Name)
+            end
+            for _, p in Players:GetPlayers() do
+                if p ~= lp then
+                    if p.Character then task.spawn(addBB, p.Character, p.Name) end
+                    table.insert(self.connections, p.CharacterAdded:Connect(onChar))
+                end
+            end
+            table.insert(self.connections, Players.PlayerAdded:Connect(function(p)
+                if p ~= lp then table.insert(self.connections, p.CharacterAdded:Connect(onChar)) end
+            end))
+            table.insert(self.connections, RunService.Heartbeat:Connect(function()
+                if not self.active then return end
+                local lc = lp.Character
+                if not lc then return end
+                local lr = lc:FindFirstChild("HumanoidRootPart")
+                if not lr then return end
+                for _, p in Players:GetPlayers() do
+                    if p ~= lp and p.Character then
+                        local bb = p.Character:FindFirstChild("Z3U5_BB")
+                        if bb then
+                            local pr = p.Character:FindFirstChild("HumanoidRootPart")
+                            if pr then
+                                local dl = bb:FindFirstChild("D")
+                                if dl then dl.Text = math.floor((lr.Position - pr.Position).Magnitude) .. "m" end
+                            end
+                        end
+                    end
+                end
+                local cp = {}
+                local cm = {}
+                for _, p in Players:GetPlayers() do
+                    if p ~= lp and p.Character then
+                        cm[p.Character] = true
+                        for _, pt in p.Character:GetDescendants() do
+                            if pt:IsA("BasePart") then table.insert(cp, pt) end
+                        end
+                    end
+                end
+                local params = OverlapParams.new()
+                params.FilterType = Enum.RaycastFilterType.Include
+                params.FilterDescendantsInstances = cp
+                params.MaxParts = 500
+                local near = workspace:GetPartBoundsInRadius(lr.Position, 100, params)
+                local inR = {}
+                for _, pt in near do
+                    local ch = pt:FindFirstAncestorOfClass("Model")
+                    if ch and cm[ch] then inR[ch] = true end
+                end
+                for ch in cm do
+                    local hl = ch:FindFirstChild("Z3U5_HL")
+                    if inR[ch] then
+                        if not hl then
+                            hl = new("Highlight", ch, {Name = "Z3U5_HL", FillColor = Color3.fromRGB(0, 100, 255), OutlineColor = Color3.fromRGB(50, 150, 255), FillTransparency = 0.5, OutlineTransparency = 0})
+                            table.insert(self.objects, hl)
+                        end
+                    else
+                        if hl then
+                            hl:Destroy()
+                            for i = #self.objects, 1, -1 do
+                                if self.objects[i] == hl then table.remove(self.objects, i); break end
+                            end
+                        end
+                    end
+                end
+            end))
+            print("[Z3U5] ESP Player: ON")
+        end,
+        stop = function(self)
+            self.active = false
+            for i = 1, #self.objects do if self.objects[i].Parent then self.objects[i]:Destroy() end end
+            for i = 1, #self.connections do if self.connections[i] then self.connections[i]:Disconnect() end end
+            self.objects = {}
+            self.connections = {}
+            print("[Z3U5] ESP Player: OFF")
+        end
+    }
+
+    F["ESP Houses"] = {
+        active = false, connections = {}, objects = {},
+        start = function(self)
+            self.active = true
+            local lp = Players.LocalPlayer
+            for _, loc in ipairs(Z.HOUSE_LOCS) do
+                local anchor = new("Part", workspace, {Name = "Z3U5_House_" .. loc.n, Position = Vector3.new(loc.x, loc.y, loc.z), Size = Vector3.new(1, 1, 1), Transparency = 1, CanCollide = false, Anchored = true, CastShadow = false})
+                local bb = new("BillboardGui", anchor, {Name = "Z3U5_HB", Size = UDim2.fromOffset(160, 40), StudsOffset = Vector3.new(0, 3, 0), AlwaysOnTop = true})
+                new("TextLabel", bb, {Name = "N", Size = UDim2.fromScale(1, 0.5), BackgroundTransparency = 1, Text = loc.n, TextColor3 = Color3.fromRGB(100, 255, 130), Font = Enum.Font.GothamBold, TextSize = 13, TextStrokeTransparency = 0.5})
+                new("TextLabel", bb, {Name = "D", Size = UDim2.fromScale(1, 0.5), Position = UDim2.fromScale(0, 0.5), BackgroundTransparency = 1, Text = "--m", TextColor3 = Color3.fromRGB(150, 255, 170), Font = Enum.Font.Gotham, TextSize = 11, TextStrokeTransparency = 0.5})
+                table.insert(self.objects, anchor)
+            end
+            table.insert(self.connections, RunService.Heartbeat:Connect(function()
+                if not self.active then return end
+                local lc = lp.Character
+                if not lc then return end
+                local lr = lc:FindFirstChild("HumanoidRootPart")
+                if not lr then return end
+                local lpos = lr.Position
+                for _, obj in ipairs(self.objects) do
+                    if obj.Parent then
+                        local bb = obj:FindFirstChild("Z3U5_HB")
+                        if bb then
+                            local d = bb:FindFirstChild("D")
+                            if d then d.Text = math.floor((lpos - obj.Position).Magnitude) .. "m" end
+                        end
+                    end
+                end
+            end))
+            print("[Z3U5] ESP Houses: ON")
+        end,
+        stop = function(self)
+            self.active = false
+            for i = 1, #self.objects do if self.objects[i].Parent then self.objects[i]:Destroy() end end
+            for i = 1, #self.connections do if self.connections[i] then self.connections[i]:Disconnect() end end
+            self.objects = {}
+            self.connections = {}
+            print("[Z3U5] ESP Houses: OFF")
+        end
+    }
+
+    F["Teleport"] = {
+        active = false, connections = {}, objects = {},
+        start = function(self)
+            self.active = true
+            Z.teleportPanel.Visible = true
+            Z.sync()
+            Z.teleportPanel.Size = UDim2.fromOffset(Z.TW, 0)
+            TweenService:Create(Z.teleportPanel, TweenInfo.new(Z.AS, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Size = UDim2.fromOffset(Z.TW, Z.panelHeight)}):Play()
+            print("[Z3U5] Teleport: ON")
+        end,
+        stop = function(self)
+            self.active = false
+            local t = TweenService:Create(Z.teleportPanel, TweenInfo.new(Z.AS, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {Size = UDim2.fromOffset(Z.TW, 0)})
+            t:Play()
+            t.Completed:Connect(function() Z.teleportPanel.Visible = false end)
+            for i = 1, #self.objects do if self.objects[i].Parent then self.objects[i]:Destroy() end end
+            for i = 1, #self.connections do if self.connections[i] then self.connections[i]:Disconnect() end end
+            self.objects = {}
+            self.connections = {}
+            print("[Z3U5] Teleport: OFF")
+        end
+    }
+
+    F["Other"] = {
+        active = false, connections = {}, objects = {},
+        start = function(self)
+            self.active = true
+            Z.otherPanel.Visible = true
+            Z.sync()
+            Z.otherPanel.Size = UDim2.fromOffset(Z.OW, 0)
+            TweenService:Create(Z.otherPanel, TweenInfo.new(Z.AS, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Size = UDim2.fromOffset(Z.OW, Z.panelHeight)}):Play()
+            print("[Z3U5] Other: ON")
+        end,
+        stop = function(self)
+            self.active = false
+            local t = TweenService:Create(Z.otherPanel, TweenInfo.new(Z.AS, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {Size = UDim2.fromOffset(Z.OW, 0)})
+            t:Play()
+            t.Completed:Connect(function() Z.otherPanel.Visible = false end)
+            for i = 1, #self.objects do if self.objects[i].Parent then self.objects[i]:Destroy() end end
+            for i = 1, #self.connections do if self.connections[i] then self.connections[i]:Disconnect() end end
+            self.objects = {}
+            self.connections = {}
+            print("[Z3U5] Other: OFF")
+        end
+    }
+
+    for name, feature in pairs(F) do
+        if name == "Teleport" or name == "Other" then
+            Z.toggleFunctions[name] = function()
+                if feature.active then
+                    feature:stop()
+                else
+                    feature:start()
+                end
+            end
+        else
+            Z.toggleFunctions[name] = function(state)
+                if state then feature:start() else feature:stop() end
+            end
+        end
+    end
+end
+
+buildLogo()
+buildMainPanel()
+buildTeleportPanel()
+buildOtherPanel()
+buildToggleButtons()
+buildDrag()
+buildOpenClose()
+buildHouseData()
+buildFeatures()
